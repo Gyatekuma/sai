@@ -370,7 +370,7 @@ function clearDbg() { var d=document.getElementById('debug'); d.innerHTML=''; d.
 function callGemini(prompt, onDone, onErr) {
   var key = getKey();
   if (!key) { onErr('NO_KEY'); return; }
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + encodeURIComponent(key);
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key);
   dbg('Calling Gemini API...', 'info');
   fetch(url, {
     method: 'POST',
