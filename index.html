@@ -370,7 +370,7 @@ function clearDbg() { var d=document.getElementById('debug'); d.innerHTML=''; d.
 function callGemini(prompt, onDone, onErr) {
   var key = getKey();
   if (!key) { onErr('NO_KEY'); return; }
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key);
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + encodeURIComponent(key);
   dbg('Calling Gemini API...', 'info');
   fetch(url, {
     method: 'POST',
@@ -388,7 +388,11 @@ function callGemini(prompt, onDone, onErr) {
     if (r.status !== 200) {
       var msg = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
       if (r.status === 400 || r.status === 403) { onErr('BAD_KEY'); return; }
-      if (r.status === 429) { onErr('Rate limit — wait 60 seconds and try again.'); return; }
+      if (r.status === 429) {
+      dbg('Rate limited — retrying in 12 seconds...', 'info');
+      setTimeout(function() { callGemini(prompt, onDone, onErr); }, 12000);
+      return;
+    }
       onErr(msg); return;
     }
     var cands = r.data && r.data.candidates;
