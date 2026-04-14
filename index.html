@@ -356,19 +356,23 @@ async function geminiCall(prompt) {
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       contents:[{parts:[{text:prompt}]}],
-      generationConfig:{temperature:0.3, maxOutputTokens:3000, responseMimeType:"application/json"}
+      generationConfig:{temperature:0.3, maxOutputTokens:4000}
     })
   });
+  const data = await res.json();
   if (!res.ok) {
-    const e = await res.json().catch(()=>({}));
-    const msg = e?.error?.message||`HTTP ${res.status}`;
+    const msg = data?.error?.message||('HTTP '+res.status);
     if (res.status===400||res.status===403) throw new Error('BAD_KEY');
-    if (res.status===429) throw new Error('Rate limit reached — please wait 60 seconds and try again.');
+    if (res.status===429) throw new Error('Rate limit — please wait 60 seconds and try again.');
     throw new Error(msg);
   }
-  const data = await res.json();
-  const text = (data?.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('');
-  if (!text) throw new Error('Empty response. Please try again.');
+  const candidate = data?.candidates?.[0];
+  if (!candidate) {
+    const reason = data?.promptFeedback?.blockReason||'unknown';
+    throw new Error('Response blocked ('+reason+'). Please try again.');
+  }
+  const text = (candidate?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('');
+  if (!text) throw new Error('Empty response from Gemini. Please try again.');
   return text;
 }
 
@@ -453,9 +457,16 @@ Rules:
 - Use real team names from current leagues
 - Return raw JSON only, starting with {`);
 
+    // Show raw snippet in log for debug
+    logStatus('Parsing response ('+text.length+' chars)...','s-info');
     const result = parseJSON(text);
     predictions = result.predictions||result||[];
-    if (!Array.isArray(predictions)||!predictions.length) throw new Error('No predictions returned. Please try again.');
+    if (!Array.isArray(predictions)||!predictions.length) {
+      // Show first 300 chars of raw response to help debug
+      showError('No predictions found. Raw response: '+text.substring(0,300));
+      setScanLoading(false);
+      isScanning=false; return;
+    }
 
     // Apply edge data
     const edgeData = result.edge||[];
