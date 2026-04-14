@@ -367,7 +367,7 @@ function dbgRaw(text) {
 function clearDbg() { var d=document.getElementById('debug'); d.innerHTML=''; d.style.display='none'; }
 
 /* ── Gemini API ── */
-function callGemini(prompt, onDone, onErr) {
+function callGemini(prompt, onDone, onErr, retries) {
   var key = getKey();
   if (!key) { onErr('NO_KEY'); return; }
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' + encodeURIComponent(key);
@@ -389,8 +389,13 @@ function callGemini(prompt, onDone, onErr) {
       var msg = (r.data && r.data.error && r.data.error.message) || ('HTTP ' + r.status);
       if (r.status === 400 || r.status === 403) { onErr('BAD_KEY'); return; }
       if (r.status === 429) {
-      dbg('Rate limited — retrying in 12 seconds...', 'info');
-      setTimeout(function() { callGemini(prompt, onDone, onErr); }, 12000);
+      retries = (retries || 0) + 1;
+      if (retries <= 2) {
+        dbg('Rate limited — retrying in 15 seconds (attempt ' + retries + '/2)...', 'info');
+        setTimeout(function() { callGemini(prompt, onDone, onErr, retries); }, 15000);
+      } else {
+        onErr('Daily API limit reached. Please get a fresh API key from aistudio.google.com/apikey and enter it via the ⚙️ settings icon.');
+      }
       return;
     }
       onErr(msg); return;
